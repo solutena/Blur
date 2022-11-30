@@ -9,8 +9,8 @@
 
 ![image](https://user-images.githubusercontent.com/22467083/202904060-7fd55768-1cf7-4287-b7df-abeda496db81.png)
 
-UI인 경우 메테리얼에 Solutena/UI/Blur 를 적용합니다.
+UI인 경우 메테리얼에 `Solutena/UI/Blur` 를 적용합니다.
 
-스프라이트인 경우 메테리얼에 Solutena/Sprite/Blur 를 적용합니다.
+스프라이트인 경우 메테리얼에 `Solutena/Sprite/Blur` 를 적용합니다.
 
 메테리얼의 Blur 값으로 조절합니다.
