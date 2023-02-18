@@ -3,15 +3,22 @@ Shader "Solutena/UI/Blur"
     Properties
     {
         [PerRendererData] _MainTex ("Sprite Texture", 2D) = "white" {}
-        _Blur ("Blur", Range(1,100)) = 1
         _Color ("Tint", Color) = (1,1,1,1)
-        _Stencil ("Stencil ID ",Float) = 0
-        [Enum(UnityEngine.Rendering.CompareFunction)] _StencilComp ("Stencil Comparison", Int) = 8
-        [Enum(UnityEngine.Rendering.StencilOp)] _StencilOp ("Stencil Operation", Int) = 0
+
+        _Stencil ("Stencil ID", Float) = 0
+        [Enum(UnityEngine.Rendering.CompareFunction)] _StencilComp ("Stencil Comparison", Float) = 8
+        [Enum(UnityEngine.Rendering.StencilOp)] _StencilOp ("Stencil Operation", Float) = 0
         _StencilWriteMask ("Stencil Write Mask", Float) = 255
         _StencilReadMask ("Stencil Read Mask", Float) = 255
+
         _ColorMask ("Color Mask", Float) = 15
+
         [Toggle(UNITY_UI_ALPHACLIP)] _UseUIAlphaClip ("Use Alpha Clip", Float) = 0
+
+        [Enum(UnityEngine.Rendering.BlendMode)] _SrcBlend ("SrcBlend mode", Float) = 5
+		[Enum(UnityEngine.Rendering.BlendMode)] _DstBlend ("DstBlend mode", Float) = 10
+        
+        _Blur ("Blur", Float) = 0
     }
 
     SubShader
@@ -74,14 +81,15 @@ Shader "Solutena/UI/Blur"
             };
 
             sampler2D _MainTex;
+            float4 _MainTex_TexelSize;
             fixed4 _Color;
             fixed4 _TextureSampleAdd;
             float4 _ClipRect;
             float4 _MainTex_ST;
             float _UIMaskSoftnessX;
             float _UIMaskSoftnessY;
+
             float _Blur;
-            float4 _MainTex_TexelSize;
 
             v2f vert(appdata_t v)
             {
@@ -110,26 +118,25 @@ Shader "Solutena/UI/Blur"
                 const half invAlphaPrecision = half(1.0/alphaPrecision);
                 IN.color.a = round(IN.color.a * alphaPrecision)*invAlphaPrecision;
 
-                half4 color = 0;
-                float total = 0;
-                for(int i=-_Blur;i<=_Blur;i++)
-                {
-                    float distance = abs(i/_Blur);
-                    float weight = exp(-0.5 * pow(distance,2)*5);
-                    total += weight;
-                    color += tex2D(_MainTex,IN.texcoord + float4(0,i* _MainTex_TexelSize.y,0,0))*weight;
-                }
+                if(_Blur <= 0)
+                    return tex2D(_MainTex,IN.texcoord);
+                
+                fixed4 color = 0;
+                float sum = 0;
 
-                for(int i=-_Blur;i<=_Blur;i++)
+                float kernelSize = ceil(_Blur * 3.0) * 2.0 + 1.0;
+                float halfKernelSize = floor(kernelSize * 0.5);
+
+                float sigma = 2.0 * _Blur * _Blur;
+                for (int x = -halfKernelSize; x <= halfKernelSize; x++)
                 {
-                    float distance = abs(i/_Blur);
-                    float weight = exp(-0.5 * pow(distance,2)*5);
-                    total += weight;
-                    color += tex2D(_MainTex,IN.texcoord + float4(i* _MainTex_TexelSize.x,0,0,0))*weight;
+                    for (int y = -halfKernelSize; y <= halfKernelSize; y++)
+                    {
+                        float weight = exp( -(x * x + y * y) / sigma) / (3.14159265358979323846 * sigma);
+                        sum += weight;
+                        color += tex2D(_MainTex, IN.texcoord + float2(x, y) * _MainTex_TexelSize) * weight;
+                    }
                 }
-                color /= total;
-                color *= IN.color;
-                color += + _TextureSampleAdd;
 
                 #ifdef UNITY_UI_CLIP_RECT
                 half2 m = saturate((_ClipRect.zw - _ClipRect.xy - abs(IN.mask.xy)) * IN.mask.zw);
@@ -140,9 +147,7 @@ Shader "Solutena/UI/Blur"
                 clip (color.a - 0.001);
                 #endif
 
-                color.rgb *= color.a;
-
-                return color;
+                return color / max(1,sum);
             }
         ENDCG
         }
