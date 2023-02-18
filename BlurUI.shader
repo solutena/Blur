@@ -132,7 +132,7 @@ Shader "Solutena/UI/Blur"
                 {
                     for (int y = -halfKernelSize; y <= halfKernelSize; y++)
                     {
-                        float weight = exp( -(x * x + y * y) / sigma) / (3.14159265358979323846 * sigma);
+                        float weight = min(1,exp( -(x * x + y * y) / sigma) / (3.14159265358979323846 * sigma));
                         sum += weight;
                         color += tex2D(_MainTex, IN.texcoord + float2(x, y) * _MainTex_TexelSize) * weight;
                     }
