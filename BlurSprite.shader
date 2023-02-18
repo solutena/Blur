@@ -48,7 +48,7 @@ Shader "Solutena/Sprite/Blur"
             fixed4 Frag(v2f IN) : SV_Target
             {
                 if(_Blur <= 0)
-                    return tex2D(_MainTex,IN.texcoord);
+                    return SampleSpriteTexture(IN.texcoord);
 
                 fixed4 color = 0;
                 float sum = 0;
@@ -63,7 +63,7 @@ Shader "Solutena/Sprite/Blur"
                     {
                         float weight = min(1,exp( -(x * x + y * y) / sigma) / (3.14159265358979323846 * sigma));
                         sum += weight;
-                        color += tex2D(_MainTex, IN.texcoord + float2(x, y) * _MainTex_TexelSize) * weight;
+                        color += SampleSpriteTexture(IN.texcoord + float2(x, y) * _MainTex_TexelSize) * weight;
                     }
                 }
 
