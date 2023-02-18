@@ -3,13 +3,16 @@ Shader "Solutena/Sprite/Blur"
     Properties
     {
         [PerRendererData] _MainTex ("Sprite Texture", 2D) = "white" {}
-        _Blur ("Blur", Range(1,100)) = 1
         [HideInInspector] _Color ("Tint", Color) = (1,1,1,1)
         [MaterialToggle] PixelSnap ("Pixel snap", Float) = 0
         [HideInInspector] _RendererColor ("RendererColor", Color) = (1,1,1,1)
         [HideInInspector] _Flip ("Flip", Vector) = (1,1,1,1)
         [PerRendererData] _AlphaTex ("External Alpha", 2D) = "white" {}
         [PerRendererData] _EnableExternalAlpha ("Enable External Alpha", Float) = 0
+        [Enum(UnityEngine.Rendering.BlendMode)] _SrcBlend ("SrcBlend", Float) = 5
+        [Enum(UnityEngine.Rendering.BlendMode)] _DstBlend ("DestBlend", Float) = 10
+        
+        _Blur ("Blur", Float) = 0
     }
 
     SubShader
@@ -26,7 +29,7 @@ Shader "Solutena/Sprite/Blur"
         Cull Off
         Lighting Off
         ZWrite Off
-        Blend One OneMinusSrcAlpha
+        Blend [_SrcBlend] [_DstBlend]
 
         Pass
         {
@@ -39,36 +42,33 @@ Shader "Solutena/Sprite/Blur"
             #pragma multi_compile _ ETC1_EXTERNAL_ALPHA
             #include "UnitySprites.cginc"
             
-            float _Blur;
             float4 _MainTex_TexelSize;
+            float _Blur;
 
             fixed4 Frag(v2f IN) : SV_Target
             {
-                float4 c = 0;
-                float total = 0;
-                for(int i=-_Blur;i<=_Blur;i++)
+                if(_Blur <= 0)
+                    return tex2D(_MainTex,IN.texcoord);
+
+                fixed4 color = 0;
+                float sum = 0;
+
+                float kernelSize = ceil(_Blur * 3.0) * 2.0 + 1.0;
+                float halfKernelSize = floor(kernelSize * 0.5);
+
+                float sigma = 2.0 * _Blur * _Blur;
+                for (int x = -halfKernelSize; x <= halfKernelSize; x++)
                 {
-                    float distance = abs(i/_Blur);
-                    float weight = exp(-0.5 * pow(distance,2)*5);
-                    total += weight;
-                    c += SampleSpriteTexture(IN.texcoord + float4(0,i* _MainTex_TexelSize.y,0,0))*weight;
+                    for (int y = -halfKernelSize; y <= halfKernelSize; y++)
+                    {
+                        float weight = exp( -(x * x + y * y) / sigma) / (3.14159265358979323846 * sigma);
+                        sum += weight;
+                        color += tex2D(_MainTex, IN.texcoord + float2(x, y) * _MainTex_TexelSize) * weight;
+                    }
                 }
 
-                for(int i=-_Blur;i<=_Blur;i++)
-                {
-                    float distance = abs(i/_Blur);
-                    float weight = exp(-0.5 * pow(distance,2)*5);
-                    total += weight;
-                    c += SampleSpriteTexture(IN.texcoord + float4(i* _MainTex_TexelSize.x,0,0,0))*weight;
-                }
-
-                c /= total;
-                c *= IN.color;
-                c.rgb *= c.a;
-
-                return c;
+                return color / max(1,sum);
             }
-
         ENDCG
         }
     }
